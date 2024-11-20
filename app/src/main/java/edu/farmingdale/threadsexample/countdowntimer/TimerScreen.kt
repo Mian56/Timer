@@ -1,5 +1,7 @@
 package edu.farmingdale.threadsexample.countdowntimer
 
+import android.content.Context
+import android.media.AudioManager
 import android.util.Log
 import android.widget.NumberPicker
 import androidx.compose.animation.core.LinearEasing
@@ -25,6 +27,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -34,12 +37,27 @@ import java.text.DecimalFormat
 import java.util.Locale
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import android.media.MediaPlayer
+import android.media.SoundPool
+import android.os.Build
+import edu.farmingdale.threadsexample.R
+import androidx.compose.ui.platform.LocalContext
 
 @Composable
 fun TimerScreen(
     modifier: Modifier = Modifier,
     timerViewModel: TimerViewModel = viewModel()
+
 ) {
+    val context = LocalContext.current
+
+    // Handle the sound when the timer reaches 0
+    if (timerViewModel.remainingMillis <= 0 && timerViewModel.isRunning) {
+        Log.d("TimerScreen", "Timer finished, playing sound.")
+        playSound(context) // Play sound when the timer hits 0
+        timerViewModel.cancelTimer() // Stop the timer
+    }
+
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             modifier = modifier
@@ -47,14 +65,47 @@ fun TimerScreen(
                 .size(240.dp),
             contentAlignment = Alignment.Center
         ) {
+
             if (timerViewModel.isRunning) {
 
             }
+
+            val progress by animateFloatAsState(
+                targetValue = if (timerViewModel.totalMillis > 0) {
+                    timerViewModel.remainingMillis.toFloat() / timerViewModel.totalMillis
+                } else 0f,
+                animationSpec = tween(durationMillis = 1000, easing = LinearEasing), label = ""
+            )
+
+            // Circular Progress Indicator
+            CircularProgressIndicator(
+                progress = { progress },
+                modifier = Modifier.size(240.dp),
+                color = if (progress < 0.1f) Color.Red else Color.Green,
+                strokeWidth = 10.dp,
+            )
+
+            //10 second timer
+            val isLast10Seconds = timerViewModel.remainingMillis <= 10_000
+            Text(
+                text = timerText(timerViewModel.remainingMillis),
+                fontSize = 40.sp,
+                fontWeight = if (isLast10Seconds) FontWeight.Bold else FontWeight.Normal,
+                color = if (isLast10Seconds) Color.Red else Color.Black
+            )
+//
             Text(
                 text = timerText(timerViewModel.remainingMillis),
                 fontSize = 40.sp,
             )
         }
+
+        Text(
+            text = timerText(timerViewModel.remainingMillis),
+            fontSize = 60.sp, // Increased size
+            fontWeight = FontWeight.Bold // Optional for emphasis
+        )
+
         TimePicker(
             hour = timerViewModel.selectedHour,
             min = timerViewModel.selectedMinute,
@@ -79,10 +130,36 @@ fun TimerScreen(
                 Text("Start")
             }
         }
+
+        Button(
+            onClick = {
+                timerViewModel.cancelTimer()
+                timerViewModel.selectTime(0, 0, 0) // Reset values
+            },
+            modifier = Modifier.padding(top = 20.dp)
+        ) {
+            Text("Reset")
+        }
+
     }
+
 }
 
+// Function to play sound using MediaPlayer
+fun playSound(context: Context) {
+    try {
+        // Initialize MediaPlayer
+        val mediaPlayer = MediaPlayer.create(context, R.raw.timerend)
+        mediaPlayer?.start() // Start playing sound
 
+        // Release media player once the sound is finished
+        mediaPlayer?.setOnCompletionListener {
+            mediaPlayer.release()
+        }
+    } catch (e: Exception) {
+        Log.e("TimerScreen", "Error playing sound: ${e.message}")
+    }
+}
 
 fun timerText(timeInMillis: Long): String {
     val duration: Duration = timeInMillis.milliseconds
@@ -141,6 +218,7 @@ fun TimePicker(
                 }
             )
         }
+
     }
 }
 
@@ -167,3 +245,9 @@ fun NumberPickerWrapper(
         }
     )
 }
+
+
+
+
+
+

@@ -22,6 +22,8 @@ import java.util.Locale
 fun FibonacciDemoNoBgThrd() {
     var answer by remember { mutableStateOf("") }
     var textInput by remember { mutableStateOf("40") }
+    val coroutineScope = rememberCoroutineScope()
+
 
     Column {
         Row {
@@ -36,8 +38,10 @@ fun FibonacciDemoNoBgThrd() {
             )
             Button(onClick = {
                 val num = textInput.toLongOrNull() ?: 0
-                val fibNumber = fibonacci(num)
-                answer = NumberFormat.getNumberInstance(Locale.US).format(fibNumber)
+                coroutineScope.launch(Dispatchers.Default) {
+                    val fibNumber = calculateFibonacci(num)
+                    answer = NumberFormat.getNumberInstance(Locale.US).format(fibNumber)
+                }
             }) {
                 Text("Fibonacci")
             }
@@ -45,6 +49,18 @@ fun FibonacciDemoNoBgThrd() {
 
         Text("Result: $answer")
     }
+}
+
+fun calculateFibonacci(n: Long): Long {
+    if (n <= 1) return n
+    var a = 0L
+    var b = 1L
+    for (i in 2..n) {
+        val temp = a + b
+        a = b
+        b = temp
+    }
+    return b
 }
 
 fun fibonacci(n: Long): Long {
